@@ -3,11 +3,20 @@ using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Lee_Xerri_PFC_Home.Repositories;
+using System.Security.Claims;
 
 namespace Lee_Xerri_PFC_Home.Controllers
 {
     public class AccountController : Controller
     {
+        private readonly FirestoreRepository _firestoreRepository;
+
+        public AccountController(FirestoreRepository firestoreRepository)
+        {
+            _firestoreRepository = firestoreRepository;
+        }
+
         [Authorize]
         public IActionResult Index()
         {
@@ -16,7 +25,6 @@ namespace Lee_Xerri_PFC_Home.Controllers
 
         public async Task<IActionResult> Logout()
         {
-            // using Microsoft.AspNetCore.Authentication;
             await HttpContext.SignOutAsync();
             return RedirectToAction("Index", "Home");
         }
@@ -34,6 +42,23 @@ namespace Lee_Xerri_PFC_Home.Controllers
             var result = await HttpContext.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
             if (!result.Succeeded)
                 return RedirectToAction("Index", "Home");
+
+            var email = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email)?.Value;
+            var firstName = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.GivenName)?.Value;
+            var lastName = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Surname)?.Value;
+
+            if (!string.IsNullOrEmpty(email))
+            {
+                var user = new Models.User
+                {
+                    Email = email,
+                    FirstName = firstName ?? "",
+                    LastName = lastName ?? "",
+                    Role = "User" // default role
+                };
+
+                await _firestoreRepository.UpdateOrAddUser(user);
+            }
 
             return RedirectToAction("Index", "Account");
         }

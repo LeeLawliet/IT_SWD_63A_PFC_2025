@@ -1,3 +1,4 @@
+using Lee_Xerri_PFC_Home.Repositories;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.Google;
 
@@ -30,6 +31,11 @@ namespace Lee_Xerri_PFC_Home
                 options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
             });
 
+            builder.Services.AddSingleton<BucketRepository>();
+            builder.Services.AddSingleton<FirestoreRepository>();
+            builder.Services.AddSingleton<Lee_Xerri_PFC_Home.Services.PubSubService>();
+
+
             // Add services to the container.
             builder.Services.AddControllersWithViews();
             builder.Services.AddRazorPages();
@@ -49,6 +55,20 @@ namespace Lee_Xerri_PFC_Home
             app.UseStaticFiles();
 
             app.UseRouting();
+
+            app.Use(async (context, next) =>
+            {
+                try
+                {
+                    await next();
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("Global error: " + ex.Message);
+                    Console.WriteLine(ex.StackTrace);
+                    throw;
+                }
+            });
 
             app.UseAuthentication();
             app.UseAuthorization();

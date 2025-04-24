@@ -1,0 +1,27 @@
+﻿@model Lee_Xerri_PFC_Home.Models.Ticket
+
+<h2>Report an Issue</h2>
+
+<form asp-action="UploadTicket" method="post" enctype="multipart/form-data">
+    <div class="form-group">
+        <label>Title</label>
+        <input asp-for="Title" class="form-control" required />
+    </div>
+    <div class="form-group">
+        <label>Description</label>
+        <textarea asp-for="Description" class="form-control" required></textarea>
+    </div>
+    <div class="form-group">
+        <label>Priority</label>
+        <select asp-for="Priority" class="form-control">
+            <option>Low</option>
+            <option>Medium</option>
+            <option>High</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label>Upload Screenshots</label>
+        <input type="file" name="images" class="form-control" multiple />
+    </div>
+    <button type="submit" class="btn btn-primary">Submit Ticket</button>
+</form>

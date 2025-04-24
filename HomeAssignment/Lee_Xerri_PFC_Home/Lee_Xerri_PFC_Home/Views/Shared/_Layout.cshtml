@@ -27,6 +27,12 @@
                         </li>
                     </ul>
                 </div>
+                <div>
+                    @if (User.Identity.IsAuthenticated)
+                    {
+                        <a class="btn btn-outline-success me-2" asp-controller="Ticket" asp-action="UploadTicket">Upload Ticket</a>
+                    }
+                </div>
                 <div class="ms-auto">
                     @if (User.Identity.IsAuthenticated == false)
                     {
@@ -55,7 +61,7 @@
     </footer>
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="~/js/site.js" asp-append-version="true"></script>
+    <!-- <script src="~/js/site.js" asp-append-version="true"></script> -->
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>
