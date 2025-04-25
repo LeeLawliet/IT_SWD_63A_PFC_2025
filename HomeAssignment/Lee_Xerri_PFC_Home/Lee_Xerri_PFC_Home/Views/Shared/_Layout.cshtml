@@ -1,4 +1,8 @@
-﻿<!DOCTYPE html>
+﻿@using Lee_Xerri_PFC_Home.Repositories
+@using System.Security.Claims
+@inject FirestoreRepository FirestoreRepo
+
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
@@ -20,12 +24,25 @@
                 <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
                     <ul class="navbar-nav flex-grow-1">
                         <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
+                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">HomAAAAAAAAAAe</a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
                         </li>
                     </ul>
+                </div>
+                <div>
+                    @if (User.Identity.IsAuthenticated)
+                    {
+                        var userEmail = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email)?.Value;
+                        var isTech = await FirestoreRepo.IsTechnicianAsync(userEmail);
+
+                        if (isTech)
+                        {
+                            <!-- Display only if user role is technician-->
+                            <a class="btn btn-outline-success me-2" asp-controller="Ticket" asp-action="TechnicianDashboard">View Tickets</a>
+                        }
+                    }
                 </div>
                 <div>
                     @if (User.Identity.IsAuthenticated)
@@ -61,7 +78,6 @@
     </footer>
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- <script src="~/js/site.js" asp-append-version="true"></script> -->
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

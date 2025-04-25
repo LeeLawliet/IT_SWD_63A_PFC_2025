@@ -49,12 +49,14 @@ namespace Lee_Xerri_PFC_Home.Controllers
 
             if (!string.IsNullOrEmpty(email))
             {
+                var existingUser = await _firestoreRepository.GetUserByEmailAsync(email);
+
                 var user = new Models.User
                 {
                     Email = email,
-                    FirstName = firstName ?? "",
-                    LastName = lastName ?? "",
-                    Role = "User" // default role
+                    FirstName = firstName ?? existingUser?.FirstName ?? "",
+                    LastName = lastName ?? existingUser?.LastName ?? "",
+                    Role = existingUser?.Role ?? "User" // keep existing role if found
                 };
 
                 await _firestoreRepository.UpdateOrAddUser(user);

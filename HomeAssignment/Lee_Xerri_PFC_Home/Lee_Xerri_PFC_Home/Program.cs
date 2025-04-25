@@ -1,6 +1,8 @@
 using Lee_Xerri_PFC_Home.Repositories;
+using Lee_Xerri_PFC_Home.Services;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.Google;
+using StackExchange.Redis;
 
 namespace Lee_Xerri_PFC_Home
 {
@@ -23,6 +25,13 @@ namespace Lee_Xerri_PFC_Home
                     options.ClientId = builder.Configuration["Authentication:Google:ClientId"];
                     options.ClientSecret = builder.Configuration["Authentication:Google:ClientSecret"];
                     options.CallbackPath = "/signin-google";
+                    options.UsePkce = true;
+
+                    options.Events.OnRedirectToAuthorizationEndpoint = context =>
+                    {
+                        context.Response.Redirect(context.RedirectUri.Replace("http://", "https://"));
+                        return Task.CompletedTask;
+                    };
                 });
 
             builder.Services.ConfigureApplicationCookie(options =>
@@ -33,15 +42,29 @@ namespace Lee_Xerri_PFC_Home
 
             builder.Services.AddSingleton<BucketRepository>();
             builder.Services.AddSingleton<FirestoreRepository>();
-            builder.Services.AddSingleton<Lee_Xerri_PFC_Home.Services.PubSubService>();
+            builder.Services.AddSingleton<PubSubService>();
+            string connectionRedis = builder.Configuration["Redis"];
+            string usernameRedis = builder.Configuration["RedisUsername"];
+            string passwordRedis = builder.Configuration["RedisPassword"];
 
+            var options = new ConfigurationOptions
+            {
+                AbortOnConnectFail = false,
+                User = usernameRedis,
+                Password = passwordRedis,
+                EndPoints = { { "redis-10900.c327.europe-west1-2.gce.redns.redis-cloud.com", 10900 }},
+            };
+
+            builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
+                    ConnectionMultiplexer.Connect(options));
+            builder.Services.AddSingleton<RedisRepository>();
+            builder.Services.AddHttpClient<MailGunService>();
 
             // Add services to the container.
             builder.Services.AddControllersWithViews();
             builder.Services.AddRazorPages();
 
             var app = builder.Build();
-
             
             // Configure the HTTP request pipeline.
             if (!app.Environment.IsDevelopment())

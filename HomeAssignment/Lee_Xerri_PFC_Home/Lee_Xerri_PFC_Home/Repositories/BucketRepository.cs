@@ -9,10 +9,16 @@ namespace Lee_Xerri_PFC_Home.Repositories
         private readonly StorageClient _client;
         private readonly string _bucketName = "ticket-imgs";
 
-        public BucketRepository()
+        public BucketRepository(IConfiguration config)
         {
-            var credentialPath = Environment.GetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS");
-            var credential = GoogleCredential.FromFile(credentialPath);
+            _bucketName = config["BucketId"] ?? throw new ArgumentNullException("BucketId");
+
+            // Try to read a JSON credentials path; if not provided, fall back to ADC
+            string credPath = config["GoogleCloud:CredentialsFilePath"];
+            GoogleCredential credential = string.IsNullOrEmpty(credPath)
+                ? GoogleCredential.GetApplicationDefault()
+                : GoogleCredential.FromFile(credPath);
+
             _client = StorageClient.Create(credential);
         }
 

@@ -16,6 +16,49 @@ namespace Lee_Xerri_PFC_Home.Repositories
             _db = FirestoreDb.Create(projectId);
         }
 
+        public async Task<bool> IsTechnicianAsync(string email)
+        {
+            DocumentReference docRef = _db.Collection("users").Document(email);
+            DocumentSnapshot snapshot = await docRef.GetSnapshotAsync();
+
+            if (snapshot.Exists)
+            {
+                var user = snapshot.ConvertTo<User>();
+                if (user.Role.ToLower() == "technician")
+                    return true;
+            }
+
+            return false;
+        }
+
+        public async Task<List<User>> GetTechniciansAsync()
+        {
+            var query = _db.Collection("users").WhereEqualTo("Role", "Technician");
+            var snapshot = await query.GetSnapshotAsync();
+            return snapshot.Documents.Select(d => d.ConvertTo<User>()).ToList();
+        }
+
+        public async Task<User?> GetUserByEmailAsync(string email)
+        {
+            var query = _db.Collection("users").WhereEqualTo("Email", email);
+            var snapshot = await query.GetSnapshotAsync();
+
+            if (snapshot.Documents.Count > 0)
+            {
+                var document = snapshot.Documents.First();
+                return document.ConvertTo<User>();
+            }
+
+            return null;
+        }
+
+        public async Task<List<User>> GetUsersAsync()
+        {
+            var query = _db.Collection("users").WhereEqualTo("Role", "User");
+            var snapshot = await query.GetSnapshotAsync();
+            return snapshot.Documents.Select(d => d.ConvertTo<User>()).ToList();
+        }
+
         public async Task<WriteResult> UpdateOrAddUser(User user)
         {
             DocumentReference docRef = _db.Collection("users").Document(user.Email);
