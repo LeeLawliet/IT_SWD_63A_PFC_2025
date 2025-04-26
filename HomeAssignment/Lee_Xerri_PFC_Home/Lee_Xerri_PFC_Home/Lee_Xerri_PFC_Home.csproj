@@ -12,6 +12,7 @@
     <PackageReference Include="Google.Cloud.Firestore.V1" Version="3.10.0" />
     <PackageReference Include="Google.Cloud.Logging.Type" Version="4.2.0" />
     <PackageReference Include="Google.Cloud.PubSub.V1" Version="3.24.0" />
+    <PackageReference Include="Google.Cloud.SecretManager.V1" Version="2.5.0" />
     <PackageReference Include="Google.Cloud.Storage.V1" Version="4.11.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.Google" Version="8.0.15" />
     <PackageReference Include="RestSharp" Version="112.1.0" />
