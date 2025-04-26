@@ -23,12 +23,6 @@ else
         <button type="submit" class="btn btn-primary mb-3">Pull Tickets</button>
     </form>
 
-    <form method="get" asp-controller="Ticket" asp-action="ProcessTickets">
-        <button type="submit" class="btn btn-secondary mb-3">
-            Run ProcessTickets (debug)
-        </button>
-    </form>
-
     @if (Model != null && Model.Any())
     {
         <div class="list-group">
