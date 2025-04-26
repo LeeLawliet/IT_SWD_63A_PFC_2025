@@ -60,6 +60,11 @@ namespace Lee_Xerri_PFC_Home.Controllers
                 };
 
                 await _firestoreRepository.UpdateOrAddUser(user);
+
+                if (user.Role == "Technician")
+                {
+                    return RedirectToAction("TechnicianDashboard", "Ticket");
+                }
             }
 
             return RedirectToAction("Index", "Account");

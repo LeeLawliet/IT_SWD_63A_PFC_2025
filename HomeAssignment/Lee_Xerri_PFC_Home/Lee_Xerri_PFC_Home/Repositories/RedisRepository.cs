@@ -1,4 +1,5 @@
 ﻿using Lee_Xerri_PFC_Home.Models;
+using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using StackExchange.Redis;
 
@@ -15,31 +16,31 @@ namespace Lee_Xerri_PFC_Home.Repositories
 
         public async Task SaveTicketAsync(Ticket ticket)
         {
+            // Save each ticket with its own key
             var json = JsonConvert.SerializeObject(ticket);
-            // Hash key = "tickets", field = ticket.TicketId
-            await _db.HashSetAsync("tickets", ticket.TicketId, json);
+            string key = $"ticket:{ticket.TicketId}"; // unique key for each ticket
+            await _db.StringSetAsync(key, json);
         }
 
         public async Task<List<Ticket>> GetCachedTicketsAsync()
         {
-            //var server = _db.Multiplexer.GetServer(_db.Multiplexer.GetEndPoints().First());
-            //var keys = server.Keys(pattern: "*");
-            //var list = new List<Ticket>();
-            //foreach (var key in keys)
-            //{
-            //    var json = await _db.StringGetAsync(key);
-            //    if (json.HasValue)
-            //        list.Add(JsonConvert.DeserializeObject<Ticket>(json));
-            //}
-            //return list;
-            var entries = await _db.HashGetAllAsync("tickets");
-            return entries
-                .Select(e => JsonConvert.DeserializeObject<Ticket>(e.Value))
-                .Where(t => t != null)
-                .ToList()!;
+            var server = _db.Multiplexer.GetServer(_db.Multiplexer.GetEndPoints().First());
+            var keys = server.Keys(pattern: "ticket:*"); // only fetch keys for tickets
+
+            var list = new List<Ticket>();
+            foreach (var key in keys)
+            {
+                var json = await _db.StringGetAsync(key);
+                if (json.HasValue)
+                    list.Add(JsonConvert.DeserializeObject<Ticket>(json!));
+            }
+            return list;
         }
 
-        public Task RemoveTicketAsync(string ticketId) =>
-            _db.HashDeleteAsync("tickets", ticketId);
+        public Task RemoveTicketAsync(string ticketId)
+        {
+            string key = $"ticket:{ticketId}";
+            return _db.KeyDeleteAsync(key);
+        }
     }
 }

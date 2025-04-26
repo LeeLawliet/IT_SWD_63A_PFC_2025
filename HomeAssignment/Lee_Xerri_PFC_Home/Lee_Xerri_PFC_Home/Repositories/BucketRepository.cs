@@ -1,4 +1,5 @@
 ﻿using Google.Apis.Auth.OAuth2;
+using Google.Apis.Storage.v1.Data;
 using Google.Cloud.Storage.V1;
 using Microsoft.AspNetCore.Http;
 
@@ -13,7 +14,7 @@ namespace Lee_Xerri_PFC_Home.Repositories
         {
             _bucketName = config["BucketId"] ?? throw new ArgumentNullException("BucketId");
 
-            // Try to read a JSON credentials path; if not provided, fall back to ADC
+            // try to read a JSON credentials path; if not provided, fall back to ADC
             string credPath = config["GoogleCloud:CredentialsFilePath"];
             GoogleCredential credential = string.IsNullOrEmpty(credPath)
                 ? GoogleCredential.GetApplicationDefault()
@@ -22,7 +23,7 @@ namespace Lee_Xerri_PFC_Home.Repositories
             _client = StorageClient.Create(credential);
         }
 
-        public async Task<string> UploadImageAsync(IFormFile file)
+        public async Task<string> UploadImageAsync(IFormFile file, string uploaderEmail, IEnumerable<string> technicianEmails)
         {
             if (file == null || file.Length == 0)
                 throw new Exception("Invalid file");
@@ -30,7 +31,26 @@ namespace Lee_Xerri_PFC_Home.Repositories
             var fileName = $"{Guid.NewGuid()}_{Path.GetFileName(file.FileName)}";
 
             using var stream = file.OpenReadStream();
-            await _client.UploadObjectAsync(_bucketName, fileName, file.ContentType ?? "application/octet-stream", stream);
+            var obj = await _client.UploadObjectAsync(
+                _bucketName,
+                fileName,
+                file.ContentType ?? "application/octet-stream",
+                stream
+            );
+
+            var readers = new[] { uploaderEmail }
+                .Concat(technicianEmails)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            // Set the ACL for the uploader
+            obj.Acl = readers.Select(email => new Google.Apis.Storage.v1.Data.ObjectAccessControl
+            {
+                Entity = $"user-{email}",
+                Role = "READER"
+            }).ToList();
+
+            await _client.UpdateObjectAsync(obj);
 
             return $"https://storage.googleapis.com/{_bucketName}/{fileName}";
         }

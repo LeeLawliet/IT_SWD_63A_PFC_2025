@@ -6,54 +6,57 @@
 @{
     ViewData["Title"] = "Technician Dashboard";
     var userEmail = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email)?.Value;
+    var userName = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Name)?.Value;
     var isTech = await FirestoreRepo.IsTechnicianAsync(userEmail);
 }
 
-<h2>Technician Dashboard</h2>
-
-<form method="post" asp-action="PullTickets">
-    <button type="submit" class="btn btn-primary mb-3">Pull Tickets</button>
-</form>
-
-<form method="get" asp-controller="Ticket" asp-action="ProcessTickets">
-    <button type="submit" class="btn btn-secondary mb-3">
-        Run ProcessTickets (debug)
-    </button>
-</form>
-
-@if (Model != null && Model.Any())
+@if (!isTech)
 {
-    <div class="list-group">
-
-        @foreach (var ticket in Model)
-        {
-            @if (!isTech)
-            {
-                <div class="alert alert-danger">@TempData["Only technicians can view this page."]</div>
-                return; // Stop rendering anything else
-            }
-
-            <div class="list-group-item">
-                <h5>@ticket.Title</h5>
-                <p><strong>Description:</strong> @ticket.Description</p>
-                <p><strong>Priority:</strong> @ticket.Priority</p>
-                <p><strong>Status:</strong> @ticket.Status</p>
-                <p><strong>Date:</strong> @ticket.DateUploaded.ToString("g")</p>
-                <form method="post" asp-action="CloseTicket" asp-route-id="@ticket.TicketId">
-                    @if (ticket.Status.ToLower() == "closed")
-                    {
-                        <button type="button" class="btn btn-outline-success" disabled>Closed</button>
-                    }
-                    else
-                    {
-                        <button type="submit" class="btn btn-success">Close</button>
-                    }
-                </form>
-            </div>
-        }
-    </div>
+    <div class="alert alert-danger"><p>Only technicians can view this page.</p></div>
+    return; // Stop rendering anything else
 }
 else
 {
-    <p>No tickets available. Click "Pull Tickets" to refresh.</p>
+    <h2>Technician Dashboard</h2>
+
+    <form method="post" asp-controller="Ticket" asp-action="PullTickets">
+        <button type="submit" class="btn btn-primary mb-3">Pull Tickets</button>
+    </form>
+
+    <form method="get" asp-controller="Ticket" asp-action="ProcessTickets">
+        <button type="submit" class="btn btn-secondary mb-3">
+            Run ProcessTickets (debug)
+        </button>
+    </form>
+
+    @if (Model != null && Model.Any())
+    {
+        <div class="list-group">
+
+            @foreach (var ticket in Model)
+            {
+                <div class="list-group-item">
+                    <h5>@ticket.Title</h5>
+                    <p><strong>Description:</strong> @ticket.Description</p>
+                    <p><strong>Priority:</strong> @ticket.Priority</p>
+                    <p><strong>Status:</strong> @ticket.Status</p>
+                    <p><strong>Date:</strong> @ticket.DateUploaded.ToString("g")</p>
+                    <form method="post" asp-action="CloseTicket" asp-route-id="@ticket.TicketId">
+                        @if (ticket.Status.Equals("closed", StringComparison.OrdinalIgnoreCase))
+                        {
+                            <button type="button" class="btn btn-outline-success" disabled>Closed</button>
+                        }
+                        else
+                        {
+                            <button type="submit" class="btn btn-success">Close</button>
+                        }
+                    </form>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <p>No tickets available. Click "Pull Tickets" to refresh.</p>
+    }
 }

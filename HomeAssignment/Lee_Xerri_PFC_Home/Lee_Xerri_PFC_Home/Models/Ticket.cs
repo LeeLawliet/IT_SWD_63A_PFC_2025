@@ -15,5 +15,6 @@ namespace Lee_Xerri_PFC_Home.Models
         [FirestoreProperty] public string Priority { get; set; }
         [BindNever] [FirestoreProperty] public string Status { get; set; } = "queued";
         [BindNever] [FirestoreProperty] public List<string> ImageUrls { get; set; } = new();
+        [FirestoreProperty] public string ClosedBy { get; set; }
     }
 }

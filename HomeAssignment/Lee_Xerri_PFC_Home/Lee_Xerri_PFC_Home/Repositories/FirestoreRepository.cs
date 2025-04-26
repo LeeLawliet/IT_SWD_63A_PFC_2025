@@ -80,7 +80,6 @@ namespace Lee_Xerri_PFC_Home.Repositories
                 var userTicketsQuery = await this.GetTicketsByUser(ticket.UserEmail);
                 int ticketCount = userTicketsQuery.Count;
 
-                ticket.TicketId = $"{ticket.UserEmail}_Ticket{ticketCount+1}";
                 DocumentReference docRef = _db.Collection("tickets").Document(ticket.TicketId);
                 return await docRef.SetAsync(ticket);
             }

@@ -40,6 +40,9 @@ namespace Lee_Xerri_PFC_Home
                 options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
             });
 
+            if (builder.Environment.IsDevelopment())
+                builder.Configuration.AddUserSecrets<Program>();
+
             builder.Services.AddSingleton<BucketRepository>();
             builder.Services.AddSingleton<FirestoreRepository>();
             builder.Services.AddSingleton<PubSubService>();

@@ -44,22 +44,25 @@ namespace Lee_Xerri_PFC_Home.Controllers
             {
                 var imageUrls = new List<string>();
 
-                foreach (var image in images)
-                {
-                    if (image != null && image.Length > 0)
-                    {
-                        var url = await _bucketRepository.UploadImageAsync(image);
-                        imageUrls.Add(url);
-                    }
-                }
-
+                ticket.TicketId = Guid.NewGuid().ToString();
                 ticket.ImageUrls = imageUrls;
                 ticket.DateUploaded = DateTime.UtcNow;
                 ticket.Status = "queued";
                 ticket.UserEmail = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email)?.Value ?? "unknown";
+                var technicians = await _firestoreRepository.GetTechniciansAsync();
+                var technicianEmails = technicians.Select(t => t.Email).ToList();
 
-                await _firestoreRepository.UpdateOrAddTicket(ticket);
-                await _pubSubService.PublishTicketAsync(ticket);
+                foreach (var image in images)
+                {
+                    if (image != null && image.Length > 0)
+                    {
+                        var url = await _bucketRepository.UploadImageAsync(image, ticket.UserEmail, technicianEmails); // push images into bucket
+                        imageUrls.Add(url);
+                    }
+                }
+
+                //await _firestoreRepository.UpdateOrAddTicket(ticket);
+                await _pubSubService.PublishTicketAsync(ticket); // push ticket to pubsub
 
                 TempData.Keep("SuccessMessage");
                 TempData["SuccessMessage"] = "Ticket submitted successfully.";
@@ -78,16 +81,18 @@ namespace Lee_Xerri_PFC_Home.Controllers
         [HttpGet]
         public async Task<IActionResult> TechnicianDashboard()
         {
-            var email = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email)?.Value;
+            var all = await _cache.GetCachedTicketsAsync();
+            var cutoff = DateTime.UtcNow.AddDays(-7);
 
-            if (string.IsNullOrEmpty(email) || !await _firestoreRepository.IsTechnicianAsync(email))
+            // Archive tickets that are closed *and* older than a week
+            foreach (var t in all.Where(t =>
+                t.DateUploaded < cutoff))
             {
-                TempData["ErrorMessage"] = "You are not authorized to access this page.";
-                return View(new List<Ticket>()); // return empty list
+                await _cache.RemoveTicketAsync(t.TicketId);
+                await _firestoreRepository.UpdateOrAddTicket(t);
             }
 
-            var tickets = await _cache.GetCachedTicketsAsync();
-            return View(tickets);
+            return View("TechnicianDashboard", all);
         }
 
         // Retrieve Tickets
@@ -95,13 +100,28 @@ namespace Lee_Xerri_PFC_Home.Controllers
         [HttpPost]
         public async Task<IActionResult> PullTickets()
         {
-            var tickets = await _cache.GetCachedTicketsAsync();
-            return View("TechnicianDashboard", tickets);
+            var all = await _cache.GetCachedTicketsAsync();
+            var cutoff = DateTime.UtcNow.AddDays(-7);
+
+            var filtered = all
+                .Where(t => t.DateUploaded >= cutoff)
+                .ToList();
+
+            // Archive tickets that are closed and older than 7 days
+            foreach (var t in all.Where(t =>
+                t.Status.Equals("closed", StringComparison.OrdinalIgnoreCase) &&
+                t.DateUploaded < cutoff))
+            {
+                await _cache.RemoveTicketAsync(t.TicketId);
+                await _firestoreRepository.UpdateOrAddTicket(t);
+            }
+
+            return View("TechnicianDashboard", filtered);
         }
 
         // Close Tickets
         [Authorize]
-        [HttpPost]
+        [HttpPost("CloseTicket/{id}")]
         public async Task<IActionResult> CloseTicket(string id)
         {
             var tickets = await _cache.GetCachedTicketsAsync();
@@ -110,115 +130,119 @@ namespace Lee_Xerri_PFC_Home.Controllers
             if (ticket == null)
             {
                 TempData["ErrorMessage"] = "Ticket not found in cache.";
-                return RedirectToAction("PullTickets");
+                return RedirectToAction("TechnicianDashboard");
             }
 
             ticket.Status = "closed";
-            _cache.SaveTicketAsync(ticket);
+
+            // Setting technician name into 'closedBy' property
+            var firstName = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.GivenName)?.Value;
+            var lastName = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Surname)?.Value;
+            var name = !string.IsNullOrEmpty(firstName) || !string.IsNullOrEmpty(lastName)
+                            ? $"{firstName} {lastName}".Trim()
+                            : User.Identity?.Name ?? "Unknown Technician";
+
+            ticket.ClosedBy = name;
+
+
+            // When closing ticket, check if ticket is older than 1 week.
+            if (ticket.DateUploaded < DateTime.UtcNow.AddDays(-7))
+            {
+                await _cache.RemoveTicketAsync(ticket.TicketId);
+                await _firestoreRepository.UpdateOrAddTicket(ticket);
+            }
+            else
+            {
+                _cache.SaveTicketAsync(ticket);
+            }
+
 
             TempData["SuccessMessage"] = "Ticket closed.";
-            return RedirectToAction("PullTickets");
+            return RedirectToAction("TechnicianDashboard");
         }
 
         // HTTP Function
         [AllowAnonymous]
-        [HttpGet("ProcessTickets")] // TESTING PURPOSES
         [HttpPost("ProcessTickets")]
-        public async Task<IActionResult> ProcessTickets()
+        public async Task<IActionResult> ProcessTickets([FromQuery] bool manual = false)
         {
-            // Pull all tickets
-            var received = await _pubSubService.PullAsync();
-            if (!received.Any()) return Ok("No tickets to process.");
-
-            // Convert received tickets to Ticket objects
-            //var all = received
-            //    .Select(r => (Ticket: _pubSubService.Deserialize(r), AckId: r.AckId))
-            //    .ToList();
-
-            //// pull raw messages
-            //var received = await _pubSubService.PullAsync();
-
-            // build a list of (Ticket, AckId) but skip nulls
-            var all = new List<(Ticket Ticket, string AckId)>();
-            foreach (var msg in received)
+            if (manual) // IF MANUALLY REQUESTED.
             {
-                // get the raw JSON
-                var raw = msg.Message.Data.ToStringUtf8();
-
-                Ticket? t = null;
-                try
-                {
-                    t = JsonConvert.DeserializeObject<Ticket>(raw);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Deserialize failed for ackId {AckId}: {Raw}", msg.AckId, raw);
-                }
-
-                if (t == null)
-                {
-                    _logger.LogWarning("Skipping null ticket for ackId {AckId}. Raw: {Raw}", msg.AckId, raw);
-                    continue;
-                }
-
-                all.Add((t, msg.AckId));
-            }
-
-            var prioritized = new List<(Ticket Ticket, string AckId)>();
-            foreach (var p in new[] { "high", "medium", "low" })
-            {
-                prioritized = all
-                    .Where(x => x.Ticket.Priority?.Equals(p, StringComparison.OrdinalIgnoreCase) == true)
+                // MANUAL: Just send an email listing pending tickets
+                var cached = await _cache.GetCachedTicketsAsync();
+                var pending = cached
+                    .Where(t => !string.Equals(t.Status, "closed", StringComparison.OrdinalIgnoreCase))
                     .ToList();
 
-                if (prioritized.Any())
-                    break;
-            }
-
-            if (!prioritized.Any())
-            {
-                // No tickets in expected priorities
-                _logger.LogInformation("No tickets matched any priority.");
-                await _pubSubService.AcknowledgeAsync(all.Select(x => x.AckId));
-                return Ok("No queued tickets in expected priorities, check if submitted tickets have a priority.");
-            }
-
-            var toAck = new List<string>();
-            foreach (var item in prioritized)
-            {
-                _cache.SaveTicketAsync(item.Ticket);
-
-                List<User> technicians = _firestoreRepository.GetTechniciansAsync().Result;
-                if (!technicians.Any())
+                if (!pending.Any())
                 {
-                    _logger.LogWarning("No technicians found in Firestore to notify.");
+                    return Ok("No pending tickets to notify.");
                 }
-                else
+
+                var techs = await _firestoreRepository.GetTechniciansAsync();
+                foreach (var tech in techs)
                 {
-                    foreach (var tech in technicians)
+                    var message = "Pending Tickets:\n" + string.Join("\n", pending.Select(t => $"- {t.Title} (Priority: {t.Priority})"));
+                    await _mailer.SendPendingTickets(pending.Count(), tech.Email);
+
+                    _logger.LogInformation(
+                        "Manual run: Notified {TechEmail} with {TicketCount} pending tickets at {Now}",
+                        tech.Email, pending.Count, DateTime.UtcNow);
+                }
+
+                return Ok($"Manual run completed. {pending.Count} pending tickets emailed.");
+            }
+
+            var received = await _pubSubService.PullAsync(); // pull from pubsub
+            var priorities = new[] { "high", "medium", "low" };
+            foreach (var p in priorities)
+            {
+                // find all new messages of this priority
+                var msgs = received
+                    .Where(m => m.Message.Attributes.TryGetValue("priority", out var prio)
+                                && string.Equals(prio, p, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+                if (msgs.Any())
+                {
+                    // process each message
+                    foreach (var msg in msgs)
                     {
-                        //await _mailer.SendTicketNotificationAsync(item.Ticket, tech.Email);
+                        var ticket = _pubSubService.Deserialize(msg);
+                        // save to cache
+                        await _cache.SaveTicketAsync(ticket);
 
-                        _logger.LogInformation(
-                            $"Notified {tech.FirstName} about Ticket {item.Ticket.TicketId} at {DateTime.UtcNow}");
+                        // send email to all technicians
+                        var techs = await _firestoreRepository.GetTechniciansAsync();
+                        foreach (var tech in techs)
+                        {
+                            await _mailer.SendTicketNotificationAsync(ticket, tech.Email);
+                            _logger.LogInformation(
+                                "Notified {TechEmail} about {TicketId} at {Now}",
+                                tech.Email, ticket.TicketId, DateTime.UtcNow);
+                        }
                     }
+
+                    // acknowledge only processed images
+                    await _pubSubService.AcknowledgeAsync(msgs.Select(m => m.AckId));
+
+                    return Ok($"Processed {msgs.Count} {p}-priority tickets.");
                 }
 
-                toAck.Add(item.AckId);
+                // Retrieve tickets from cache of the current priority, if not closed, do not move onto next priority.
+                var cached = await _cache.GetCachedTicketsAsync();
+                var stillOpen = cached
+                    .Where(t => string.Equals(t.Priority, p, StringComparison.OrdinalIgnoreCase)
+                                && !string.Equals(t.Status, "closed", StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                if (stillOpen.Any())
+                {
+                    // stop here until those are closed
+                    return Ok($"No new {p}-priority tickets, but {stillOpen.Count} still pending in cache.");
+                }
             }
 
-            await _pubSubService.AcknowledgeAsync(toAck);
-
-            var cached = await _cache.GetCachedTicketsAsync();
-            foreach (var t in cached.Where(t =>
-                t.Status.Equals("closed", StringComparison.OrdinalIgnoreCase) &&
-                t.DateUploaded < DateTime.UtcNow.AddDays(-7)))
-            {
-                await _cache.RemoveTicketAsync(t.TicketId);
-                await _firestoreRepository.UpdateOrAddTicket(t);
-            }
-
-            return Ok($"Processed {toAck.Count} tickets.");
+            return Ok("No tickets to process at any priority level.");
         }
     }
 }

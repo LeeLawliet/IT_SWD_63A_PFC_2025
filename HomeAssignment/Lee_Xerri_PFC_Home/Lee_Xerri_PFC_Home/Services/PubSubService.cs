@@ -33,23 +33,12 @@ namespace Lee_Xerri_PFC_Home.Services
         {
             var client = await SubscriberServiceApiClient.CreateAsync();
             var subName = SubscriptionName.FromProjectSubscription(_projectId, _subId);
-            var all = new List<ReceivedMessage>();
 
-            while (true)
-            {
-                var resp = await client.PullAsync(subName,
+            var resp = await client.PullAsync(subName,
                                      returnImmediately: false,
                                      maxMessages: maxMessages);
-                if (resp.ReceivedMessages.Count == 0)
-                    break;
 
-                all.AddRange(resp.ReceivedMessages);
-                // Ack them so they don’t reappear
-                var ackIds = resp.ReceivedMessages.Select(m => m.AckId);
-                await client.AcknowledgeAsync(subName, ackIds);
-            }
-
-           return all;
+            return resp.ReceivedMessages.ToList();
         }
 
         public async Task AcknowledgeAsync(IEnumerable<string> ackIds)
