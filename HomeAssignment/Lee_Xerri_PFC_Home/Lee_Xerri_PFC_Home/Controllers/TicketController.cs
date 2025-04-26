@@ -61,7 +61,6 @@ namespace Lee_Xerri_PFC_Home.Controllers
                     }
                 }
 
-                //await _firestoreRepository.UpdateOrAddTicket(ticket);
                 await _pubSubService.PublishTicketAsync(ticket); // push ticket to pubsub
 
                 TempData.Keep("SuccessMessage");
