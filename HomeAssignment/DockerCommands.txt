@@ -1,0 +1,65 @@
+https://localhost:44357/
+
+dotnet user-secets set "Authentication:Google:ClientId" "1078243225196-bj6h88s525c630a9hq2e75fbk21fm7f8.apps.googleusercontent.com"
+dotnet user-secrets set "Authentication:Google:ClientSecret" "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"
+
+gcloud builds submit --tag gcr.io/pftchome-457811/lee-xerri-pfc-home
+gcloud run deploy lee-xerri-pfc-home --image gcr.io/pftchome-457811/lee-xerri-pfc-home --platform managed
+
+gcloud redis instances create lee-xerri-pfc-home-redis --size=1 --region=europe-west1 --tier=basic --redis-version=redis_6_x
+
+gcloud artifacts repositories create lee-xerri-pfc-home-repo --repository-format=docker --location=europe-west1
+
+gcloud builds submit --tag europe-west1-docker.pkg.dev/pftchome-457811/lee-xerri-pfc-home-repo/lee-xerri-pfc-home
+
+gcloud run deploy lee-xerri-pfc-home --image europe-west1-docker.pkg.dev/pftchome-457811/lee-xerri-pfc-home-repo/lee-xerri-pfc-home --platform managed --region europe-west1  --allow-unauthenticated
+
+docker push europe-west-1/pftchome-457811/lee-xerri-pfc-home-repo/homeassignment
+
+docker run -p 9001:8080 -e GOOGLE_APPLICATION_CREDENTIALS=/app/pftchome-457811-46628d2c5b77.json -v "%cd%/Lee_Xerri_PFC_Home:/app" --name lee-xerri-pfc-home lee-xerri-pfc-home
+/
+cloud builds submit --tag europe-west1-docker.pkg.dev/pftchome-457811/lee-xerri-pfc-home-repo/homeassignment
+
+docker run -p 9001:8080 -e ASPNETCORE_ENVIRONMENT=Development -e GOOGLE_APPLICATION_CREDENTIALS=/app/pftchome.json -v "%cd%/pftchome-457811-46628d2c5b77.json:/app/pftchome.json" --name lee-xerri-pfc-home lee-xerri-pfc-home
+
+gcloud scheduler jobs create http process-tickets-job --schedule="0 * * * *" --time-zone="Europe/Malta" --http-method=POST --uri="https://lee-xerri-pfc-home-1078243225196.europewest1.run.app/Ticket/ProcessTickets" --oauth-service-account-email=admin-241@pftchome-457811.iam.gserviceaccount.com
+
+// REBUILD COMMANDS
+
+(CD TO E:\Repos\IT_SWD_63A_PFC_2025\HomeAssignment\Lee_Xerri_PFC_Home>)
+
+docker tag lee-xerri-pfc-home europe-west-1/pftchome-457811/lee-xerri-pfc-home-repo/homeassignment 
+gcloud builds submit --tag europe-west1-docker.pkg.dev/pftchome-457811/lee-xerri-pfc-home-repo/homeassignment 
+gcloud run deploy lee-xerri-pfc-home --image=europe-west1-docker.pkg.dev/pftchome-457811/lee-xerri-pfc-home-repo/homeassignment:latest --platform=managed --region=europe-west1 --allow-unauthenticated
+
+// DATABASE CAHCHE
+db name: database-M9WS8OMQ
+endpoint: redis-10900.c327.europe-west1-2.gce.redns.redis-cloud.com:10900
+API Key: A62mb9cm8wtqlnwnr25m4xym4uw1iqtz0j3rgtidy6js6p0w9db
+
+// PASSWORD for redis
+LeeXerriPFCHome123.
+
+// DELETE TICKETS
+docker run --rm -it redis:6.0 redis-cli -h redis-10900.c327.europe-west1-2.gce.redns.redis-cloud.com -p 10900
+AUTH leexerri LeeXerriPFCHome123.
+DEL tickets
+
+// CREATE SCHEDULE
+gcloud scheduler jobs create http process-tickets-job --location=europe-west1 --schedule="0 * * * *" --time-zone="Europe/Malta" --http-method=POST --uri="https://lee-xerri-pfc-home-1078243225196.europe-west1.run.app/Ticket/ProcessTickets" --oidc-service-account-email=admin-241@pftchome-457811.iam.gserviceaccount.com --oidc-token-audience="https://lee-xerri-pfc-home-1078243225196.europe-west1.run.app"
+
+docker run --rm -it redis:6.0 redis-cli -h redis-10900.c327.europe-west1-2.gce.redns.redis-cloud.com -p 10900 -a LeeXerriPFCHome123. DEL tickets
+docker run --rm -it redis:6.0 redis-cli -u "redis://leexerri:LeeXerriPFCHome123.@redis-10900.c327.europe-west1-2.gce.redns.redis-cloud.com:10900" DEL tickets
+docker run --rm -it redis:6.0 redis-cli -h redis-10900.c327.europe-west1-2.gce.redns.redis-cloud.com -p 10900
+
+// MAILGUN'
+
+DOMAIN: sandbox93cc4d0a83bc45448cde7066d9a008f8.mailgun.org
+API Key: 033c476598ddc7308c426c63dd329a6a-10b6f382-f1600df2
+
+//
+
+TODO:
+
+ADD IMAGE RETRIEVAL WITH PERMISSIONS FOR READER  AND ALL TECHNICIANS.
+USERS CAN CHECK STATUS OF THEIR TICKETS
