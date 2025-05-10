@@ -1,14 +1,20 @@
 ﻿using Google.Cloud.Firestore.V1;
-using Lee_Xerri_PFC_Home.Models;
-using Lee_Xerri_PFC_Home.Repositories;
-using Lee_Xerri_PFC_Home.Services;
+using LeeXerriPFC_Functions.Models;
+using LeeXerriPFC_Functions.Repositories;
+using LeeXerriPFC_Functions.Services;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using System;
+using System.Collections.Generic;
 using System.ComponentModel;
+using System.Linq;
 using System.Security.Claims;
+using System.Threading.Tasks;
 
-namespace Lee_Xerri_PFC_Home.Controllers
+namespace LeeXerriPFC_Functions.Controllers
 {
     public class TicketController : Controller
     {
@@ -152,12 +158,96 @@ namespace Lee_Xerri_PFC_Home.Controllers
             }
             else
             {
-                _cache.SaveTicketAsync(ticket);
+                await _cache.SaveTicketAsync(ticket);
             }
 
 
             TempData["SuccessMessage"] = "Ticket closed.";
             return RedirectToAction("TechnicianDashboard");
+        }
+
+        // HTTP Function
+        [AllowAnonymous]
+        [HttpPost("ProcessTickets")]
+        public async Task<IActionResult> ProcessTickets([FromQuery] bool manual = false)
+        {
+            if (manual) // IF MANUALLY REQUESTED.
+            {
+                // MANUAL: Just send an email listing pending tickets
+                var cached = await _cache.GetCachedTicketsAsync();
+                var pending = cached
+                    .Where(t => !string.Equals(t.Status, "closed", StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+                if (!pending.Any())
+                {
+                    return Ok("No pending tickets to notify.");
+                }
+
+                var techs = await _firestoreRepository.GetTechniciansAsync();
+                foreach (var tech in techs)
+                {
+                    var message = "Pending Tickets:\n" + string.Join("\n", pending.Select(t => $"- {t.Title} (Priority: {t.Priority})"));
+                    await _mailer.SendPendingTickets(pending.Count(), tech.Email);
+
+                    _logger.LogInformation(
+                        "Manual run: Notified {TechEmail} with {TicketCount} pending tickets at {Now}",
+                        tech.Email, pending.Count, DateTime.UtcNow);
+                }
+
+                return Ok($"Manual run completed. {pending.Count} pending tickets emailed.");
+            }
+
+            var received = await _pubSubService.PullAsync(); // pull from pubsub
+            var priorities = new[] { "high", "medium", "low" };
+            foreach (var p in priorities)
+            {
+                // find all new messages of this priority
+                var msgs = received
+                    .Where(m => m.Message.Attributes.TryGetValue("priority", out var prio)
+                                && string.Equals(prio, p, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+                if (msgs.Any())
+                {
+                    // process each message
+                    foreach (var msg in msgs)
+                    {
+                        var ticket = _pubSubService.Deserialize(msg);
+                        // save to cache
+                        await _cache.SaveTicketAsync(ticket);
+
+                        // send email to all technicians
+                        var techs = await _firestoreRepository.GetTechniciansAsync();
+                        foreach (var tech in techs)
+                        {
+                            await _mailer.SendTicketNotificationAsync(ticket, tech.Email);
+                            _logger.LogInformation(
+                                "Notified {TechEmail} about {TicketId} at {Now}",
+                                tech.Email, ticket.TicketId, DateTime.UtcNow);
+                        }
+                    }
+
+                    // acknowledge only processed images
+                    await _pubSubService.AcknowledgeAsync(msgs.Select(m => m.AckId));
+
+                    return Ok($"Processed {msgs.Count} {p}-priority tickets.");
+                }
+
+                // Retrieve tickets from cache of the current priority, if not closed, do not move onto next priority.
+                var cached = await _cache.GetCachedTicketsAsync();
+                var stillOpen = cached
+                    .Where(t => string.Equals(t.Priority, p, StringComparison.OrdinalIgnoreCase)
+                                && !string.Equals(t.Status, "closed", StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                if (stillOpen.Any())
+                {
+                    // stop here until those are closed
+                    return Ok($"No new {p}-priority tickets, but {stillOpen.Count} still pending in cache.");
+                }
+            }
+
+            return Ok("No tickets to process at any priority level.");
         }
     }
 }

@@ -1,0 +1,24 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.2.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LeeXerriPFC_Functions", "LeeXerriPFC_Functions.csproj", "{EBA6FA47-8763-699B-06A9-8B8AC189CAAF}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{EBA6FA47-8763-699B-06A9-8B8AC189CAAF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EBA6FA47-8763-699B-06A9-8B8AC189CAAF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EBA6FA47-8763-699B-06A9-8B8AC189CAAF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EBA6FA47-8763-699B-06A9-8B8AC189CAAF}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {D0D868A8-FF13-4C75-8C1B-D8542EB7A261}
+	EndGlobalSection
+EndGlobal

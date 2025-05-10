@@ -98,9 +98,15 @@ namespace Lee_Xerri_PFC_Home
             {
                 app.UseExceptionHandler("/Home/Error");
                 app.UseHsts();
+
+                // Don't redirect to HTTPS on Cloud Run, it already terminates SSL.
+                var runningInCloudRun = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("K_SERVICE"));
+                if (!runningInCloudRun)
+                {
+                    app.UseHttpsRedirection();
+                }
             }
 
-            app.UseHttpsRedirection();
             app.UseStaticFiles();
             app.UseRouting();
             app.UseAuthentication();

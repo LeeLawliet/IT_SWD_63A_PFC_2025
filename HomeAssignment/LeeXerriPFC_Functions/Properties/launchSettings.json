@@ -1,0 +1,16 @@
+{
+    "profiles": {
+      "ProcessTicketsFunction": {
+        "commandName": "Project",
+        "dotnetRunMessages": true,
+        "applicationUrl": "http://localhost:8080",
+        "environmentVariables": {
+          "ASPNETCORE_ENVIRONMENT": "Development",
+          "GOOGLE_PROJECT_ID": "pftchome-457811",
+          "PUBSUB_SUBSCRIPTION_ID": "tickets-topic-sub",
+          "GOOGLE_APPLICATION_CREDENTIALS": "E:\\Repos\\IT_SWD_63A_PFC_2025\\HomeAssignment\\LeeXerriPFC_Functions\\pftchome-457811-46628d2c5b77.json"
+        }
+      }
+    }
+  }
+  

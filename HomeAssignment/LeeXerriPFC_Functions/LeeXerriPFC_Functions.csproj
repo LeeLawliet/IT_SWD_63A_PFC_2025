@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Google.Cloud.Firestore" Version="3.10.0" />
+    <PackageReference Include="Google.Cloud.Functions.Hosting" Version="2.2.1" />
+    <PackageReference Include="Google.Cloud.Logging.V2" Version="4.4.0" />
+    <PackageReference Include="Google.Cloud.Functions.Framework" Version="2.2.1" />
+    <PackageReference Include="Google.Cloud.PubSub.V1" Version="3.24.0" />
+    <PackageReference Include="Google.Cloud.Storage.V1" Version="4.11.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.Google" Version="8.0.15" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="RestSharp" Version="112.1.0" />
+    <PackageReference Include="StackExchange.Redis" Version="2.8.31" />
+    <PackageReference Include="Google.Cloud.SecretManager.V1" Version="2.5.0" />
+    <None Include="appsettings*.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>
